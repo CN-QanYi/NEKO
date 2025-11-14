@@ -9,7 +9,7 @@ let pixi_app = null;
 let isInitialized = false;
 
 let motionTimer = null; // 动作持续时间定时器
-let isEmotionChanging = false; // 防止快速连续点击的标志
+let isEmotionChanging2D = false; // 防止快速连续点击的标志 (2D模式专用)
 
 // Live2D 管理器类
 class Live2DManager {
@@ -21,7 +21,7 @@ class Live2DManager {
         this.pixi_app = null;
         this.isInitialized = false;
         this.motionTimer = null;
-        this.isEmotionChanging = false;
+        this.isEmotionChanging2D = false;
         this.dragEnabled = false;
         this.isFocusing = false;
         this.isLocked = true;
@@ -586,7 +586,7 @@ class Live2DManager {
         }
         
         // 防止快速连续点击
-        if (this.isEmotionChanging) {
+        if (this.isEmotionChanging2D) {
             console.log('情感切换中，忽略新的情感请求');
             return;
         }
@@ -594,7 +594,7 @@ class Live2DManager {
         console.log(`新情感触发: ${emotion}，当前情感: ${this.currentEmotion}`);
         
         // 设置标志，防止快速连续点击
-        this.isEmotionChanging = true;
+        this.isEmotionChanging2D = true;
         
         try {
             console.log(`开始设置新情感: ${emotion}`);
@@ -632,7 +632,7 @@ class Live2DManager {
             console.error(`设置情感 ${emotion} 失败:`, error);
         } finally {
             // 重置标志
-            this.isEmotionChanging = false;
+            this.isEmotionChanging2D = false;
         }
     }
 
@@ -1064,35 +1064,50 @@ class Live2DManager {
         const { preferences, isMobile = false } = options;
 
         if (isMobile) {
-            // 移动端设置
-            const scale = Math.min(
-                0.5,
-                window.innerHeight * 1.3 / 4000,
-                window.innerWidth * 1.2 / 2000
-            );
-            model.scale.set(scale);
-            model.x = this.pixi_app.renderer.width * 0.5;
-            model.y = this.pixi_app.renderer.height * 0.28;
-            model.anchor.set(0.5, 0.1);
-        } else {
-            // 桌面端设置
+            // 移动端设置 - 优化缩放和位置
             if (preferences && preferences.scale && preferences.position) {
                 // 使用保存的偏好设置
                 model.scale.set(preferences.scale.x, preferences.scale.y);
                 model.x = preferences.position.x;
                 model.y = preferences.position.y;
             } else {
-                // 使用默认设置
-                const scale = Math.min(
-                    0.5,
-                    (window.innerHeight * 0.75) / 7000,
-                    (window.innerWidth * 0.6) / 7000
+                // 使用更合理的默认设置
+                const scale = Math.max(
+                    0.15,
+                    Math.min(
+                        window.innerHeight * 0.8 / 2000,
+                        window.innerWidth * 0.9 / 1500
+                    )
                 );
                 model.scale.set(scale);
-                model.x = this.pixi_app.renderer.width;
-                model.y = this.pixi_app.renderer.height;
+                // 居中显示，稍微偏下一些以确保完整显示
+                model.x = this.pixi_app.renderer.width * 0.5;
+                model.y = this.pixi_app.renderer.height * 0.65;
+                model.anchor.set(0.5, 0.5); // 改为中心锚点
             }
-            model.anchor.set(0.65, 0.75);
+        } else {
+            // 桌面端设置 - 优化缩放和位置
+            if (preferences && preferences.scale && preferences.position) {
+                // 使用保存的偏好设置
+                model.scale.set(preferences.scale.x, preferences.scale.y);
+                model.x = preferences.position.x;
+                model.y = preferences.position.y;
+            } else {
+                // 使用更合理的默认设置
+                const scale = Math.max(
+                    0.1,
+                    Math.min(
+                        0.3,
+                        (window.innerHeight * 0.6) / 3000,
+                        (window.innerWidth * 0.5) / 3000
+                    )
+                );
+                model.scale.set(scale);
+                // 右下角显示，留出控制面板空间
+                model.x = this.pixi_app.renderer.width * 0.75;
+                model.y = this.pixi_app.renderer.height * 0.7;
+            }
+            model.anchor.set(0.5, 0.5); // 统一使用中心锚点
         }
     }
 

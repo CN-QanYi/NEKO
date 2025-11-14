@@ -155,14 +155,16 @@ async def initialize_character_data():
     
     logger.info(f"角色配置加载完成，当前角色: {catgirl_names}，主人: {master_name}")
 
-# 初始化角色数据（使用asyncio.run在模块级别执行async函数）
-import asyncio as _init_asyncio
-try:
-    _init_asyncio.get_event_loop()
-except RuntimeError:
-    _init_asyncio.set_event_loop(_init_asyncio.new_event_loop())
-_init_asyncio.get_event_loop().run_until_complete(initialize_character_data())
+# 全局变量初始化（延迟到服务器启动时）
 lock = asyncio.Lock()
+_is_initialized = False
+
+async def ensure_initialized():
+    """确保角色数据已初始化"""
+    global _is_initialized
+    if not _is_initialized:
+        await initialize_character_data()
+        _is_initialized = True
 
 # --- FastAPI App Setup ---
 app = FastAPI()
@@ -2615,6 +2617,16 @@ if __name__ == "__main__":
     def shutdown_server():
         logger.info("收到浏览器关闭信号，正在关闭服务器...")
         os.kill(os.getpid(), signal.SIGTERM)
+
+    # 3) 启动前初始化角色数据
+    async def startup_initialization():
+        """启动时的初始化"""
+        await ensure_initialized()
+        logger.info("服务器初始化完成")
+    
+    # 运行初始化
+    import asyncio
+    asyncio.run(startup_initialization())
 
     # 4) 启动服务器（阻塞，直到 server.should_exit=True）
     logger.info("--- Starting FastAPI Server ---")

@@ -1,0 +1,16 @@
+{
+  "extends": "@moeru/tsconfig",
+  "compilerOptions": {
+    // "allowJs": true,
+    // "checkJs": true
+  },
+  "include": [
+    "examples/**/src",
+    "packages/**/src",
+    "packages/**/test"
+  ],
+  "exclude": [
+    "examples/playground/src",
+    "packages/three-mmd-r3f/src"
+  ]
+}

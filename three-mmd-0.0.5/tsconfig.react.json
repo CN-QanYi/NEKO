@@ -1,0 +1,10 @@
+{
+  "extends": "@moeru/tsconfig",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "examples/playground/src",
+    "packages/three-mmd-r3f/src"
+  ]
+}

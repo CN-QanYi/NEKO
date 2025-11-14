@@ -25,6 +25,49 @@
         }
         #live2d-canvas:active { cursor: grabbing; }
 
+        /* 3D Canvas 样式 */
+        #live3d-container {
+            position: fixed; right: 0px; bottom: 0px; width: 100%; height: 100%;
+            z-index: 10; pointer-events: auto;
+        }
+        #live3d-canvas {
+            display: none; width: 100%; height: 100%; background: transparent;
+            cursor: grab; pointer-events: auto;
+        }
+        #live3d-canvas:active { cursor: grabbing; }
+
+        /* 模型类型选择器样式 */
+        #model-type-group {
+            border: 2px solid #e3f2fd;
+            padding: 15px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+        }
+        .model-type-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .model-type-tab {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #44b7fe;
+            background: white;
+            color: #44b7fe;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-align: center;
+        }
+        .model-type-tab.active {
+            background: #44b7fe;
+            color: white;
+        }
+        .model-type-tab:hover:not(.active) {
+            background: #e3f2fd;
+        }
+
         #sidebar {
             position: fixed;
             left: 20px;
@@ -163,12 +206,28 @@
         <div id="upload-status" style="font-size:12px; color:#666; margin-top:4px;"></div>
     </div>
     
-    <div class="control-group">
-        <label for="model-select" class="control-label">选择模型:</label>
-        <select id="model-select" class="control-select">
-            <option>加载中...</option>
-        </select>
-    </div>
+                <h3>角色模型管理</h3>
+                <div id="model-type-group" class="control-group">
+                    <label>模型类型</label>
+                    <div class="model-type-tabs">
+                        <div class="model-type-tab active" data-type="2d">2D Live2D</div>
+                        <div class="model-type-tab" data-type="3d">3D MMD</div>
+                    </div>
+                </div>
+                <div id="role-group" class="control-group">
+                    <label for="role-select" class="control-label">选择角色</label>
+                    <select id="role-select" class="control-select">
+                        <option value="">-- 选择角色 --</option>
+                    </select>
+                    <button id="load-role" class="btn btn-primary">加载模型</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="model-select" class="control-label">选择模型</label>
+                    <select id="model-select" class="control-select">
+                        <option value="">-- 选择模型 --</option>
+                    </select>
+                </div>
 
     <div class="control-group">
         <label class="control-label">动作预览:</label>
@@ -225,13 +284,25 @@
     <div id="status">正在初始化...</div>
 </div>
 
-<div id="live2d-container"><canvas id="live2d-canvas"></canvas></div>
+<!-- Live2D 场景区域 -->
+    <div id="live2d-container" style="display: block;">
+        <canvas id="live2d-canvas"></canvas>
+    </div>
+
+    <!-- Live3D 3D模型场景区域 -->
+    <div id="live3d-container" style="display: none;">
+        <canvas id="live3d-canvas"></canvas>
+    </div>
 
 <script src="/static/libs/live2dcubismcore.min.js"></script>
 <script src="/static/libs/live2d.min.js"></script>
 <script src="/static/libs/pixi.min.js"></script>
 <script src="/static/libs/index.min.js"></script>
+<script src="/static/libs/three.min.js"></script>
+<script src="/static/libs/three-vrm.js"></script>
 <script src="/static/live2d.js"></script>
+<script src="/static/live3d.js"></script>
+<script src="/static/three-mmd-bridge.js"></script>
 
 <script>
     // 用于页面间通信的事件处理
@@ -253,25 +324,26 @@
         window.hasUnsavedChanges = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
-        const statusDiv = document.getElementById('status');
-        const modelSelect = document.getElementById('model-select');
-        const motionSelect = document.getElementById('motion-select');
-        const expressionSelect = document.getElementById('expression-select');
-        const playMotionBtn = document.getElementById('play-motion-btn');
-        const playExpressionBtn = document.getElementById('play-expression-btn');
-        const emotionManagerBtn = document.getElementById('emotion-manager-btn');
-        const savePositionBtn = document.getElementById('save-position-btn');
-        const persistentBox = document.getElementById('persistent-box');
-        const persistentSelect = document.getElementById('persistent-expression-select');
-        const addPersistentBtn = document.getElementById('add-persistent-btn');
-        const persistentList = document.getElementById('persistent-list');
-        const savePersistentBtn = document.getElementById('save-persistent-btn');
-        const uploadBtn = document.getElementById('upload-btn');
-        const modelUpload = document.getElementById('model-upload');
-        const uploadStatus = document.getElementById('upload-status');
-        const backToMainBtn = document.getElementById('backToMainBtn');
-        
-        // 全屏控制函数
+            const statusDiv = document.getElementById('status');
+            const modelSelect = document.getElementById('model-select');
+            const roleSelect = document.getElementById('role-select');
+            const motionSelect = document.getElementById('motion-select');
+            const expressionSelect = document.getElementById('expression-select');
+            const playMotionBtn = document.getElementById('play-motion-btn');
+            const playExpressionBtn = document.getElementById('play-expression-btn');
+            const emotionManagerBtn = document.getElementById('emotion-manager-btn');
+            const savePositionBtn = document.getElementById('save-position-btn');
+            const persistentBox = document.getElementById('persistent-box');
+            const persistentSelect = document.getElementById('persistent-expression-select');
+            const addPersistentBtn = document.getElementById('add-persistent-btn');
+            const persistentList = document.getElementById('persistent-list');
+            const savePersistentBtn = document.getElementById('save-persistent-btn');
+            const uploadBtn = document.getElementById('upload-btn');
+            const modelUpload = document.getElementById('model-upload');
+            const uploadStatus = document.getElementById('upload-status');
+            const backToMainBtn = document.getElementById('backToMainBtn');
+            
+            // 全屏控制函数
         const requestFullscreen = () => {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
@@ -343,6 +415,14 @@
         let live2dModel = null;
         let currentEmotionMapping = null; // { motions: {...}, expressions: {...} }
         let currentPersistent = []; // expressions.常驻
+        
+        // 全局变量
+        let canvas, app, model, live2dManager;
+        let currentModelData = null;
+        let settings = null;
+        let tab = '';
+        let currentModelType = '2d'; // 当前模型类型：2d或3d
+        let mmd3dManager = null; // 3D管理器实例
 
         const showStatus = (msg, duration = 0) => {
             statusDiv.textContent = msg;
@@ -358,39 +438,204 @@
         await window.live2dManager.initPIXI('live2d-canvas', 'live2d-container');
         showStatus('PIXI 初始化完成');
 
-        // 先加载模型列表
-        try {
-            const response = await fetch('/api/live2d/models');
-            availableModels = await response.json();
-            if (availableModels.length > 0) {
+        // 页面初始化时加载对应模型类型的列表
+        showStatus('正在加载角色和模型列表...');
+        await loadModelsForType(currentModelType);
+
+        // 初始化3D MMD管理器
+        async function init3DManager() {
+            try {
+                if (typeof MMD3DManager === 'undefined' && typeof window.MMD3DManager === 'undefined') {
+                    console.error('MMD3DManager类未定义，请检查live3d.js文件是否正确加载');
+                    return false;
+                }
+                // 使用window.MMD3DManager确保能访问到类定义
+                const MMD3DManagerClass = window.MMD3DManager || MMD3DManager;
+                mmd3dManager = new MMD3DManagerClass();
+                await mmd3dManager.init3D('live3d-canvas', 'live3d-container');
+                showStatus('3D MMD管理器初始化完成');
+                return true;
+            } catch (error) {
+                console.error('3D MMD管理器初始化失败:', error);
+                showStatus('3D MMD初始化失败');
+                return false;
+            }
+        }
+        
+        // 延迟初始化3D管理器，确保DOM和库已加载
+        setTimeout(async () => {
+            await init3DManager();
+        }, 1000);
+
+        // 模型类型切换事件处理
+        const modelTypeTabs = document.querySelectorAll('.model-type-tab');
+        modelTypeTabs.forEach(tab => {
+            tab.addEventListener('click', async () => {
+                // 移除所有活动状态
+                modelTypeTabs.forEach(t => t.classList.remove('active'));
+                // 添加当前活动状态
+                tab.classList.add('active');
+                
+                const selectedType = tab.dataset.type;
+                if (currentModelType === selectedType) return;
+                
+                await switchModelType(selectedType);
+            });
+        });
+
+        // 切换模型类型的函数
+        async function switchModelType(newType) {
+            if (newType === currentModelType) return;
+            
+            showStatus(`正在切换到${newType === '2d' ? '2D Live2D' : '3D MMD'}模式...`);
+            
+            // 获取DOM元素
+            const live2dCanvas = document.getElementById('live2d-canvas');
+            const live2dContainer = document.getElementById('live2d-container');
+            const live3dCanvas = document.getElementById('live3d-canvas');
+            const live3dContainer = document.getElementById('live3d-container');
+            
+            // 隐藏当前的canvas和容器
+            if (currentModelType === '2d') {
+                live2dCanvas.style.display = 'none';
+                live2dContainer.style.display = 'none';
+            } else {
+                live3dCanvas.style.display = 'none';
+                live3dContainer.style.display = 'none';
+            }
+            
+            // 显示新的canvas和容器
+            if (newType === '2d') {
+                live2dCanvas.style.display = 'block';
+                live2dContainer.style.display = 'block';
+                live3dCanvas.style.display = 'none';
+                live3dContainer.style.display = 'none';
+            } else {
+                // 检查3D管理器是否初始化成功
+                if (!mmd3dManager) {
+                    showStatus('3D管理器未初始化，请刷新页面重试');
+                    return;
+                }
+                live3dCanvas.style.display = 'block';
+                live3dContainer.style.display = 'block';
+                live2dCanvas.style.display = 'none';
+                live2dContainer.style.display = 'none';
+            }
+            
+            // 更新当前模型类型
+            currentModelType = newType;
+            
+            // 清空当前模型信息
+            currentModelInfo = null;
+            currentModelFiles = { motion_files: [], expression_files: [] };
+            
+            // 重置UI状态
+            motionSelect.innerHTML = '<option>请先加载模型</option>';
+            expressionSelect.innerHTML = '<option>请先加载模型</option>';
+            motionSelect.disabled = true;
+            expressionSelect.disabled = true;
+            playMotionBtn.disabled = true;
+            playExpressionBtn.disabled = true;
+            emotionManagerBtn.disabled = true;
+            savePositionBtn.disabled = true;
+            persistentBox.style.display = 'none';
+            
+            // 清空角色和模型选择框
+            roleSelect.innerHTML = '<option value="">-- 选择角色 --</option>';
+            modelSelect.innerHTML = '<option value="">-- 选择模型 --</option>';
+            
+            // 根据模型类型加载对应列表
+            if (newType === '2d') {
+                await loadModelsForType('2d');
+            } else {
+                await loadModelsForType('3d');
+            }
+            
+            showStatus(`已切换到${newType === '2d' ? '2D Live2D' : '3D MMD'}模式`);
+        }
+
+        // 根据模型类型加载对应列表
+        async function loadModelsForType(modelType) {
+            if (modelType === '2d') {
+                await loadAvailableLive2DModels();
+            } else {
+                await loadAvailableLive3DModels();
+            }
+        }
+
+        // 加载可用的Live2D模型
+        async function loadAvailableLive2DModels() {
+            try {
+                // 加载角色列表
+                const response = await fetch('/api/characters');
+                const characterData = await response.json();
+                const catgirls = characterData['猫娘'] || {};
+                const catgirlNames = Object.keys(catgirls);
+                
+                roleSelect.innerHTML = '<option value="">-- 选择角色 --</option>';
+                catgirlNames.forEach(catgirlName => {
+                    const option = document.createElement('option');
+                    option.value = catgirlName;
+                    option.textContent = catgirlName;
+                    roleSelect.appendChild(option);
+                });
+                
+                // 加载Live2D模型列表到模型选择框
+                const modelResponse = await fetch('/api/live2d/models');
+                availableModels = await modelResponse.json();
+                if (availableModels.length > 0) {
+                    modelSelect.innerHTML = '<option value="">-- 选择模型 --</option>';
+                    availableModels.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.name;
+                        option.textContent = model.name;
+                        modelSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                showStatus('加载Live2D模型列表失败');
+            }
+        }
+
+        // 加载可用的Live3D模型
+        async function loadAvailableLive3DModels() {
+            try {
+                // 加载所有猫娘角色到角色选择器
+                const response = await fetch('/api/characters');
+                const characterData = await response.json();
+                const catgirls = characterData['猫娘'] || {};
+                const catgirlNames = Object.keys(catgirls);
+                
+                roleSelect.innerHTML = '<option value="">-- 选择角色 --</option>';
+                catgirlNames.forEach(catgirlName => {
+                    const option = document.createElement('option');
+                    option.value = catgirlName;
+                    option.textContent = catgirlName;
+                    roleSelect.appendChild(option);
+                });
+                
+                // 3D模型选项（使用three-mmd示例中的miku模型）
+                const live3dModels = [
+                    { name: 'Miku V2 (three-mmd示例)', path: '/miku_v2.pmd', animation: '/wavefile_v2.vmd' },
+                    { name: '普拉娜原皮', path: '/普拉娜/普拉娜原皮.vrm' }
+                ];
+                
                 modelSelect.innerHTML = '<option value="">请选择一个模型</option>';
-                availableModels.forEach(model => {
+                live3dModels.forEach(model => {
                     const option = document.createElement('option');
                     option.value = model.name;
                     option.textContent = model.name;
                     modelSelect.appendChild(option);
                 });
-
-                showStatus('模型列表加载成功');
-            } else {
-                showStatus('未找到可用模型');
-            }
-        } catch (e) {
-            showStatus('加载模型列表失败');
-        }
-
-        // 然后加载当前角色的模型（此时下拉框已经有选项了）
-        await loadCurrentCharacterModel();
-
-        // 如果已自动加载了一个模型，确保在下拉框中选中它
-        // 这是双重保险：防止 loadCurrentCharacterModel() 内部设置失败
-        if (currentModelInfo && currentModelInfo.name) {
-            const exists = availableModels.some(m => m.name === currentModelInfo.name);
-            if (exists && modelSelect.value !== currentModelInfo.name) {
-                console.log('下拉框值未正确设置，执行补救:', currentModelInfo.name);
-                modelSelect.value = currentModelInfo.name;
+                
+                availableModels = live3dModels;
+                showStatus('3D MMD模式：角色列表已加载，模型选项为普拉娜');
+            } catch (error) {
+                showStatus('加载角色列表失败');
             }
         }
+
+
 
         // 保存模型设置到角色的函数
         async function saveModelToCharacter(modelName) {
@@ -428,6 +673,109 @@
             }
         }
 
+        // 加载角色按钮事件
+        document.getElementById('load-role').addEventListener('click', async () => {
+            const selectedRole = roleSelect.value;
+            if (!selectedRole) {
+                showStatus('请先选择角色');
+                return;
+            }
+
+            if (currentModelType === '2d') {
+                // 2D模式下获取角色档案和Live2D模型设置
+                try {
+                    const response = await fetch('/api/characters');
+                    const characterData = await response.json();
+                    
+                    const catgirls = characterData['猫娘'] || {};
+                    const catgirlProfile = catgirls[selectedRole];
+                    
+                    if (catgirlProfile) {
+                        // 显示角色档案信息
+                        console.log(`角色 ${selectedRole} 的档案信息:`, catgirlProfile);
+                        
+                        // 获取该角色的Live2D模型设置
+                        const live2dResponse = await fetch(`/api/characters/current_live2d_model?catgirl_name=${encodeURIComponent(selectedRole)}`);
+                        const live2dResult = await live2dResponse.json();
+                        
+                        if (live2dResult.success && live2dResult.model_name) {
+                            // 找到对应的模型信息
+                            const modelInfo = availableModels.find(m => m.name === live2dResult.model_name);
+                            if (modelInfo) {
+                                // 设置模型选择器
+                                modelSelect.value = live2dResult.model_name;
+                                // 加载模型
+                                await loadModel(live2dResult.model_name, modelInfo);
+                                showStatus(`已加载角色 ${selectedRole} 的完整档案和模型设置`);
+                            } else {
+                                showStatus(`角色 ${selectedRole} 的模型 ${live2dResult.model_name} 不存在`);
+                            }
+                        } else {
+                            showStatus(`角色 ${selectedRole} 没有设置Live2D模型`);
+                        }
+                    } else {
+                        showStatus(`角色 ${selectedRole} 的档案信息不存在`);
+                    }
+                } catch (error) {
+                    console.error('加载角色档案失败:', error);
+                    showStatus('加载角色档案失败');
+                }
+            } else {
+                // 3D模式下：角色选择器显示所有猫娘，模型选择器只显示普拉娜
+                const selectedModel = modelSelect.value;
+                if (!selectedModel) {
+                    showStatus('请先选择要加载的普拉娜模型');
+                    return;
+                }
+                
+                // 获取角色档案信息
+                try {
+                    const response = await fetch('/api/characters');
+                    const characterData = await response.json();
+                    const catgirls = characterData['猫娘'] || {};
+                    const catgirlProfile = catgirls[selectedRole];
+                    
+                    if (catgirlProfile) {
+                        console.log(`角色 ${selectedRole} 的档案信息:`, catgirlProfile);
+                    }
+                    
+                    // 加载选中的普拉娜3D模型
+                    const modelInfo = availableModels.find(m => m.name === selectedModel);
+                    if (modelInfo) {
+                        await loadLive3DModel(selectedModel);
+                        showStatus(`已为角色 ${selectedRole} 加载3D模型: ${selectedModel}`);
+                    } else {
+                        showStatus(`3D模型 ${selectedModel} 不存在`);
+                    }
+                } catch (error) {
+                    console.error('加载角色档案失败:', error);
+                    showStatus('加载角色档案失败');
+                }
+            }
+        });
+
+        // 加载3D模型的函数
+        async function loadLive3DModel(modelName) {
+            if (!mmd3dManager) {
+                showStatus('3D管理器未初始化');
+                return;
+            }
+
+            const modelPath = `/普拉娜/${modelName}.vrm`;
+            showStatus(`正在加载3D模型: ${modelName}...`);
+            setControlsDisabled(true);
+
+            try {
+                await mmd3dManager.loadModel(modelPath);
+                showStatus(`3D模型 ${modelName} 加载成功`);
+            } catch (error) {
+                showStatus(`3D模型 ${modelName} 加载失败`);
+                console.error(error);
+            } finally {
+                setControlsDisabled(false);
+            }
+        }
+
         // 修改模型选择事件，自动保存模型设置
         modelSelect.addEventListener('change', async (e) => {
             const modelName = e.target.value;
@@ -435,6 +783,13 @@
 
             currentModelInfo = availableModels.find(m => m.name === modelName);
             if (!currentModelInfo) return;
+
+            // 3D MMD模式下不需要加载Live2D模型
+            if (currentModelType === '3d') {
+                console.log('3D MMD模式下选择模型:', modelName);
+                showStatus(`已选择3D模型: ${modelName}`);
+                return;
+            }
 
             await loadModel(modelName, currentModelInfo);
             
@@ -926,6 +1281,12 @@
         // 加载当前角色模型的函数
         async function loadCurrentCharacterModel() {
             try {
+                // 3D MMD模式下跳过自动加载
+                if (currentModelType === '3d') {
+                    console.log('3D MMD模式下跳过自动模型加载');
+                    return;
+                }
+                
                 // 从URL参数中获取角色名称，如果没有则使用后端传入的默认值
                 const urlParams = new URLSearchParams(window.location.search);
                 const lanlanName = urlParams.get('lanlan_name') || '{{ lanlan_name }}' || '';
@@ -968,8 +1329,8 @@
                 showStatus('加载当前角色模型失败');
             }
         }
-    });
-// 监听页面卸载事件，确保返回时主界面可见
+
+        // 监听页面卸载事件，确保返回时主界面可见
         window.addEventListener('beforeunload', (e) => {
             // 尝试退出全屏
             if (isFullscreen()) {
@@ -995,6 +1356,7 @@
         window.addEventListener('unload', () => {
             sendMessageToMainPage('show_main_ui');
         });
+        }); // DOMContentLoaded事件监听器的闭合
         </script>
 
 </body>

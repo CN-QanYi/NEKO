@@ -56,7 +56,7 @@ async def shutdown_memory_server():
         return {"status": "error", "message": str(e)}
 
 @app.on_event("shutdown")
-async def shutdown_event_handler():
+def shutdown_event_handler():
     """应用关闭时执行清理工作"""
     logger.info("Memory server正在关闭...")
     # 这里可以添加任何需要的清理工作
