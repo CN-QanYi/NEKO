@@ -42,21 +42,43 @@ def _is_china_region() -> bool:
         True 表示中文区，False 表示非中文区
     """
     try:
-        # 获取系统 locale（使用 locale.getlocale() 替代已弃用的 getdefaultlocale()）
+        # 方法1: 获取系统 locale（使用 locale.getlocale() 替代已弃用的 getdefaultlocale()）
         # locale.getlocale() 返回 (language_code, encoding) 元组
-        system_locale = locale.getlocale()[0]
-        if system_locale:
-            # 检查是否是中文 locale
-            system_locale_lower = system_locale.lower()
-            if system_locale_lower.startswith('zh'):
+        try:
+            system_locale = locale.getlocale()[0]
+            if system_locale:
+                # 检查是否是中文 locale
+                system_locale_lower = system_locale.lower()
+                if system_locale_lower.startswith('zh'):
+                    logger.debug(f"通过locale检测到中文区: {system_locale}")
+                    return True
+        except (ValueError, TypeError, locale.Error) as e:
+            logger.debug(f"从locale获取系统语言失败: {e}")
+        
+        # 方法2: 如果无法从 locale 判断，尝试从系统语言环境变量判断
+        try:
+            lang_env = os.environ.get('LANG', '').lower()
+            if lang_env and lang_env.startswith('zh'):
+                logger.debug(f"通过LANG环境变量检测到中文区: {lang_env}")
                 return True
+        except (AttributeError, TypeError) as e:
+            logger.debug(f"从LANG环境变量获取语言失败: {e}")
         
-        # 如果无法从 locale 判断，尝试从系统语言环境变量判断
-        lang_env = os.environ.get('LANG', '').lower()
-        if lang_env.startswith('zh'):
-            return True
+        # 方法3: 在Windows上尝试获取区域设置
+        if os.name == 'nt':  # Windows系统
+            try:
+                import ctypes
+                # 获取用户默认LCID (Locale ID)
+                lcid = ctypes.windll.kernel32.GetUserDefaultLCID()
+                # 中文区域的LCID: 简体中文(2052), 繁体中文台湾(1028), 繁体中文香港(3076)
+                if lcid in [2052, 1028, 3076, 4100, 5124]:
+                    logger.debug(f"通过Windows LCID检测到中文区: {lcid}")
+                    return True
+            except (ImportError, AttributeError, OSError) as e:
+                logger.debug(f"从Windows LCID获取区域失败: {e}")
         
-        # 默认判断：如果系统 locale 不是中文，则认为是非中文区
+        # 默认判断：如果所有方法都无法确定，则认为是非中文区
+        logger.debug("所有区域检测方法均未检测到中文区，默认为非中文区")
         return False
     except Exception as e:
         logger.warning(f"判断系统区域失败: {e}，默认使用非中文区")
@@ -71,27 +93,41 @@ def _get_system_language() -> str:
         语言代码 ('zh', 'en', 'ja')，默认返回 'zh'
     """
     try:
-        # 获取系统 locale（使用 locale.getlocale() 替代已弃用的 getdefaultlocale()）
+        # 方法1: 获取系统 locale（使用 locale.getlocale() 替代已弃用的 getdefaultlocale()）
         # locale.getlocale() 返回 (language_code, encoding) 元组
-        system_locale = locale.getlocale()[0]
-        if system_locale:
-            system_locale_lower = system_locale.lower()
-            if system_locale_lower.startswith('zh'):
-                return 'zh'
-            elif system_locale_lower.startswith('ja'):
-                return 'ja'
-            elif system_locale_lower.startswith('en'):
-                return 'en'
+        try:
+            system_locale = locale.getlocale()[0]
+            if system_locale:
+                system_locale_lower = system_locale.lower()
+                if system_locale_lower.startswith('zh'):
+                    logger.debug(f"通过locale检测到系统语言: 中文")
+                    return 'zh'
+                elif system_locale_lower.startswith('ja'):
+                    logger.debug(f"通过locale检测到系统语言: 日文")
+                    return 'ja'
+                elif system_locale_lower.startswith('en'):
+                    logger.debug(f"通过locale检测到系统语言: 英文")
+                    return 'en'
+        except (ValueError, TypeError, locale.Error) as e:
+            logger.debug(f"从locale获取系统语言失败: {e}")
         
-        # 尝试从环境变量获取
-        lang_env = os.environ.get('LANG', '').lower()
-        if lang_env.startswith('zh'):
-            return 'zh'
-        elif lang_env.startswith('ja'):
-            return 'ja'
-        elif lang_env.startswith('en'):
-            return 'en'
+        # 方法2: 尝试从环境变量获取
+        try:
+            lang_env = os.environ.get('LANG', '').lower()
+            if lang_env:
+                if lang_env.startswith('zh'):
+                    logger.debug(f"通过LANG环境变量检测到系统语言: 中文")
+                    return 'zh'
+                elif lang_env.startswith('ja'):
+                    logger.debug(f"通过LANG环境变量检测到系统语言: 日文")
+                    return 'ja'
+                elif lang_env.startswith('en'):
+                    logger.debug(f"通过LANG环境变量检测到系统语言: 英文")
+                    return 'en'
+        except (AttributeError, TypeError) as e:
+            logger.debug(f"从LANG环境变量获取语言失败: {e}")
         
+        logger.debug("无法检测系统语言，使用默认中文")
         return 'zh'  # 默认中文
     except Exception as e:
         logger.warning(f"获取系统语言失败: {e}，使用默认中文")

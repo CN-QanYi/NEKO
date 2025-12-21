@@ -27,7 +27,16 @@ import httpx
 
 from .shared_state import get_steamworks, get_config_manager, get_sync_message_queue, get_session_manager
 from config import get_extra_body, MEMORY_SERVER_PORT
-from config.prompts_sys import emotion_analysis_prompt, proactive_chat_prompt, proactive_chat_prompt_screenshot, proactive_chat_prompt_window_search, proactive_chat_rewrite_prompt
+from config.prompts_sys import (
+    emotion_analysis_prompt, 
+    proactive_chat_prompt, 
+    proactive_chat_prompt_screenshot, 
+    proactive_chat_prompt_window_search, 
+    proactive_chat_rewrite_prompt,
+    proactive_chat_prompt_en,
+    proactive_chat_prompt_screenshot_en,
+    proactive_chat_prompt_window_search_en
+)
 from utils.workshop_utils import get_workshop_path
 from utils.screenshot_utils import analyze_screenshot_from_data_url
 from utils.language_utils import detect_language, translate_text, normalize_language_code
@@ -730,26 +739,48 @@ async def proactive_chat(request: Request):
                 
                 formatted_content = format_trending_content(trending_content)
                 
-                # 显示具体的首页推荐内容详情
+                # 显示具体的首页推荐内容详情（根据区域显示不同来源）
                 content_details = []
+                region = trending_content.get('region', 'china')
                 
-                bilibili_data = trending_content.get('bilibili', {})
-                if bilibili_data.get('success'):
-                    videos = bilibili_data.get('videos', [])
-                    bilibili_titles = [video.get('title', '') for video in videos[:5]]  # 只显示前5个
-                    if bilibili_titles:
-                        content_details.append("B站视频:")
-                        for title in bilibili_titles:
-                            content_details.append(f"  - {title}")
-                
-                weibo_data = trending_content.get('weibo', {})
-                if weibo_data.get('success'):
-                    trending_list = weibo_data.get('trending', [])
-                    weibo_words = [item.get('word', '') for item in trending_list[:5]]  # 只显示前5个
-                    if weibo_words:
-                        content_details.append("微博话题:")
-                        for word in weibo_words:
-                            content_details.append(f"  - {word}")
+                if region == 'china':
+                    # 中国区：显示B站和微博
+                    bilibili_data = trending_content.get('bilibili', {})
+                    if bilibili_data.get('success'):
+                        videos = bilibili_data.get('videos', [])
+                        bilibili_titles = [video.get('title', '') for video in videos[:5]]  # 只显示前5个
+                        if bilibili_titles:
+                            content_details.append("B站视频:")
+                            for title in bilibili_titles:
+                                content_details.append(f"  - {title}")
+                    
+                    weibo_data = trending_content.get('weibo', {})
+                    if weibo_data.get('success'):
+                        trending_list = weibo_data.get('trending', [])
+                        weibo_words = [item.get('word', '') for item in trending_list[:5]]  # 只显示前5个
+                        if weibo_words:
+                            content_details.append("微博话题:")
+                            for word in weibo_words:
+                                content_details.append(f"  - {word}")
+                else:
+                    # 非中国区：显示YouTube和Twitter
+                    youtube_data = trending_content.get('youtube', {})
+                    if youtube_data.get('success'):
+                        videos = youtube_data.get('videos', [])
+                        youtube_titles = [video.get('title', '') for video in videos[:5]]  # 只显示前5个
+                        if youtube_titles:
+                            content_details.append("YouTube Videos:")
+                            for title in youtube_titles:
+                                content_details.append(f"  - {title}")
+                    
+                    twitter_data = trending_content.get('twitter', {})
+                    if twitter_data.get('success'):
+                        trending_list = twitter_data.get('trending', [])
+                        twitter_words = [item.get('word', '') for item in trending_list[:5]]  # 只显示前5个
+                        if twitter_words:
+                            content_details.append("Twitter Topics:")
+                            for word in twitter_words:
+                                content_details.append(f"  - {word}")
                 
                 if content_details:
                     logger.info(f"[{lanlan_name}] 成功获取首页推荐:")
@@ -775,34 +806,45 @@ async def proactive_chat(request: Request):
             logger.warning(f"[{lanlan_name}] 获取记忆上下文失败，使用空上下文: {e}")
             memory_context = ""
         
+        # 检测区域以选择合适的提示词
+        from utils.language_utils import is_china_region
+        try:
+            is_china = is_china_region()
+        except Exception as e:
+            logger.warning(f"[{lanlan_name}] 区域检测失败，默认使用中文提示词: {e}")
+            is_china = True
+        
         # 3. 构造提示词（根据选择使用不同的模板）
         if use_screenshot:
             # 截图模板：基于屏幕内容让AI决定是否主动发起对话
-            system_prompt = proactive_chat_prompt_screenshot.format(
+            prompt_template = proactive_chat_prompt_screenshot if is_china else proactive_chat_prompt_screenshot_en
+            system_prompt = prompt_template.format(
                 lanlan_name=lanlan_name,
                 master_name=master_name_current,
                 screenshot_content=screenshot_content,
                 memory_context=memory_context
             )
-            logger.info(f"[{lanlan_name}] 使用图片主动对话提示词")
+            logger.info(f"[{lanlan_name}] 使用图片主动对话提示词 (区域: {'中国' if is_china else '非中国'})")
         elif use_window_search:
             # 窗口搜索模板：基于当前活跃窗口和百度搜索结果让AI决定是否主动发起对话
-            system_prompt = proactive_chat_prompt_window_search.format(
+            prompt_template = proactive_chat_prompt_window_search if is_china else proactive_chat_prompt_window_search_en
+            system_prompt = prompt_template.format(
                 lanlan_name=lanlan_name,
                 master_name=master_name_current,
                 window_context=formatted_window_content,
                 memory_context=memory_context
             )
-            logger.info(f"[{lanlan_name}] 使用窗口搜索主动对话提示词")
+            logger.info(f"[{lanlan_name}] 使用窗口搜索主动对话提示词 (区域: {'中国' if is_china else '非中国'})")
         else:
             # 首页推荐模板：基于首页信息流让AI决定是否主动发起对话
-            system_prompt = proactive_chat_prompt.format(
+            prompt_template = proactive_chat_prompt if is_china else proactive_chat_prompt_en
+            system_prompt = prompt_template.format(
                 lanlan_name=lanlan_name,
                 master_name=master_name_current,
                 trending_content=formatted_content,
                 memory_context=memory_context
             )
-            logger.info(f"[{lanlan_name}] 使用首页推荐主动对话提示词")
+            logger.info(f"[{lanlan_name}] 使用首页推荐主动对话提示词 (区域: {'中国' if is_china else '非中国'})")
 
         # 4. 直接使用langchain ChatOpenAI获取AI回复（不创建临时session）
         try:
