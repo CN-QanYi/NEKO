@@ -176,6 +176,12 @@ class LLMSessionManager:
             self.tts_pending_chunks.clear()
         
         await self.send_user_activity()
+        
+        # 立即生成新的 speech_id，确保新回复不会使用被打断的 ID
+        # 这样即使 handle_input_transcript 先于 handle_new_message 执行，
+        # 新回复的 audio_chunk 也不会被错误丢弃
+        async with self.lock:
+            self.current_speech_id = str(uuid4())
 
     async def handle_text_data(self, text: str, is_first_chunk: bool = False):
         """文本回调：处理文本显示和TTS（用于文本模式）"""
@@ -1008,10 +1014,12 @@ class LLMSessionManager:
             self.is_starting_session = False
 
     async def send_user_activity(self):
+        """发送用户活动信号，附带被打断的 speech_id 用于精确打断控制"""
         try:
             if self.websocket and hasattr(self.websocket, 'client_state') and self.websocket.client_state == self.websocket.client_state.CONNECTED:
                 message = {
-                    "type": "user_activity"
+                    "type": "user_activity",
+                    "interrupted_speech_id": self.current_speech_id  # 告诉前端应丢弃哪个 speech_id
                 }
                 await self.websocket.send_json(message)
         except WebSocketDisconnect:
@@ -1821,8 +1829,15 @@ class LLMSessionManager:
 
 
     async def send_speech(self, tts_audio):
+        """发送语音数据到前端，先发送 speech_id 头信息用于精确打断控制"""
         try:
             if self.websocket and hasattr(self.websocket, 'client_state') and self.websocket.client_state == self.websocket.client_state.CONNECTED:
+                # 先发送 audio_chunk 头信息，包含 speech_id
+                await self.websocket.send_json({
+                    "type": "audio_chunk",
+                    "speech_id": self.current_speech_id
+                })
+                # 然后发送二进制音频数据
                 await self.websocket.send_bytes(tts_audio)
 
                 # 同步到同步服务器
