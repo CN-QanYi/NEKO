@@ -3741,11 +3741,11 @@ function init_app() {
             const rms = Math.sqrt(sum / dataArray.length);
             
             // 映射到 0~1
-            let mouthOpen = Math.min(1, rms * 8);
+            let mouthOpen = Math.min(1, rms * 10);
             
             
             // 柔化处理：大幅增加平滑度，让动作更“肉”一点，避免快速开合
-            mouthOpen = _lastMouthOpen * 0.3 + mouthOpen * 0.7;
+            mouthOpen = _lastMouthOpen * 0.5 + mouthOpen * 0.5;
             _lastMouthOpen = mouthOpen;
 
             
