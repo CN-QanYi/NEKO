@@ -21,11 +21,19 @@ class VRMManager {
         this._lookAtHeadWorldPos = null;
         this._lookAtRayClosestPoint = null;
         this._lookAtDirection = null;
+        this._lookAtBaseForward = null;
+        this._lookAtBaseRight = null;
+        this._lookAtBaseUp = null;
+        this._lookAtWorldUp = null;
         this._lookAtDesiredPoint = null;
         // 跟随时间常数（秒）：值越大，跟随越慢、越平滑
         this._lookAtSmoothTime = 0.5;
         // 头部到视线目标的固定距离（球面半径，单位：米）
         this._lookAtDistance = 2.4;
+        // 视线角度限制（度）：避免眼睛/头部打到极限位
+        this._lookAtMaxYawDeg = 60;
+        this._lookAtMaxPitchUpDeg = 35;
+        this._lookAtMaxPitchDownDeg = 28;
 
         // 阴影资源引用（用于清理）
         this._shadowTexture = null;
@@ -56,6 +64,10 @@ class VRMManager {
         if (!this._lookAtHeadWorldPos) this._lookAtHeadWorldPos = new window.THREE.Vector3();
         if (!this._lookAtRayClosestPoint) this._lookAtRayClosestPoint = new window.THREE.Vector3();
         if (!this._lookAtDirection) this._lookAtDirection = new window.THREE.Vector3();
+        if (!this._lookAtBaseForward) this._lookAtBaseForward = new window.THREE.Vector3();
+        if (!this._lookAtBaseRight) this._lookAtBaseRight = new window.THREE.Vector3();
+        if (!this._lookAtBaseUp) this._lookAtBaseUp = new window.THREE.Vector3();
+        if (!this._lookAtWorldUp) this._lookAtWorldUp = new window.THREE.Vector3(0, 1, 0);
         if (!this._lookAtDesiredPoint) this._lookAtDesiredPoint = new window.THREE.Vector3();
         return true;
     }
@@ -75,6 +87,46 @@ class VRMManager {
         }
         this._lookAtHeadWorldPos.set(0, 1.4, 0);
         return this._lookAtHeadWorldPos;
+    }
+
+    _clampLookAtDirectionByAngle(direction, headWorldPos) {
+        if (!this.camera || !window.THREE) return;
+
+        this._lookAtBaseForward.subVectors(this.camera.position, headWorldPos);
+        if (this._lookAtBaseForward.lengthSq() < 1e-8) {
+            this._lookAtBaseForward.set(0, 0, 1);
+        } else {
+            this._lookAtBaseForward.normalize();
+        }
+
+        this._lookAtBaseRight.crossVectors(this._lookAtWorldUp, this._lookAtBaseForward);
+        if (this._lookAtBaseRight.lengthSq() < 1e-8) {
+            this._lookAtBaseRight.set(1, 0, 0);
+        } else {
+            this._lookAtBaseRight.normalize();
+        }
+        this._lookAtBaseUp.crossVectors(this._lookAtBaseForward, this._lookAtBaseRight).normalize();
+
+        const x = direction.dot(this._lookAtBaseRight);
+        const y = direction.dot(this._lookAtBaseUp);
+        const z = direction.dot(this._lookAtBaseForward);
+
+        const yaw = Math.atan2(x, z);
+        const horizontalLen = Math.sqrt(x * x + z * z);
+        const pitch = Math.atan2(y, Math.max(1e-8, horizontalLen));
+
+        const maxYaw = window.THREE.MathUtils.degToRad(this._lookAtMaxYawDeg);
+        const maxPitchUp = window.THREE.MathUtils.degToRad(this._lookAtMaxPitchUpDeg);
+        const maxPitchDown = window.THREE.MathUtils.degToRad(this._lookAtMaxPitchDownDeg);
+
+        const clampedYaw = window.THREE.MathUtils.clamp(yaw, -maxYaw, maxYaw);
+        const clampedPitch = window.THREE.MathUtils.clamp(pitch, -maxPitchDown, maxPitchUp);
+        const cosPitch = Math.cos(clampedPitch);
+
+        direction.copy(this._lookAtBaseRight).multiplyScalar(Math.sin(clampedYaw) * cosPitch)
+            .addScaledVector(this._lookAtBaseUp, Math.sin(clampedPitch))
+            .addScaledVector(this._lookAtBaseForward, Math.cos(clampedYaw) * cosPitch)
+            .normalize();
     }
 
     _setLookAtTargetByMouse(clientX, clientY) {
@@ -102,6 +154,7 @@ class VRMManager {
         if (this._lookAtDirection.lengthSq() < 1e-8) return;
 
         this._lookAtDirection.normalize();
+        this._clampLookAtDirectionByAngle(this._lookAtDirection, headWorldPos);
         this._lookAtDesiredPoint.copy(headWorldPos).addScaledVector(this._lookAtDirection, this._lookAtDistance);
     }
 
@@ -887,6 +940,10 @@ class VRMManager {
         this._lookAtHeadWorldPos = null;
         this._lookAtRayClosestPoint = null;
         this._lookAtDirection = null;
+        this._lookAtBaseForward = null;
+        this._lookAtBaseRight = null;
+        this._lookAtBaseUp = null;
+        this._lookAtWorldUp = null;
         this._lookAtDesiredPoint = null;
 
         if (this.scene) {
