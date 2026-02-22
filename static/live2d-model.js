@@ -388,7 +388,7 @@ Live2DManager.prototype._configureLoadedModel = async function(model, modelPath,
 // 根据画质设置降低模型纹理分辨率
 // 必须在模型首次渲染前调用，这样 PIXI 上传到 GPU 的就是降采样后的纹理
 Live2DManager.prototype._applyTextureQuality = function (model) {
-    const quality = window.renderQuality || 'high';
+    const quality = window.renderQuality || 'medium';
     if (quality === 'high') return;
 
     const maxSize = quality === 'low' ? 1024 : 2048;

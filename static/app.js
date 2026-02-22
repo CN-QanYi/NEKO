@@ -308,8 +308,8 @@ function init_app() {
     let focusModeEnabled = false;
 
     // 动画设置：画质和帧率
-    let renderQuality = 'high';   // 'low' | 'medium' | 'high'
-    let targetFrameRate = 60;     // 30 | 60
+    let renderQuality = 'medium';   // 'low' | 'medium' | 'high'
+    let targetFrameRate = 60;       // 30 | 45 | 60
 
     // 暴露到全局作用域，供 live2d.js 等其他模块访问和修改
     window.proactiveChatEnabled = proactiveChatEnabled;
@@ -8635,7 +8635,7 @@ function init_app() {
                 proactiveVisionInterval = settings.proactiveVisionInterval ?? DEFAULT_PROACTIVE_VISION_INTERVAL;
                 window.proactiveVisionInterval = proactiveVisionInterval; // 同步到全局
                 // 画质设置
-                renderQuality = settings.renderQuality ?? 'high';
+                renderQuality = settings.renderQuality ?? 'medium';
                 window.renderQuality = renderQuality;
                 // 帧率设置
                 targetFrameRate = settings.targetFrameRate ?? 60;

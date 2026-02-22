@@ -577,10 +577,20 @@ class VRMManager {
                 }
 
                 // 5. VRM 核心更新（LookAt / SpringBone 物理）— 受画质设置影响
-                // low: 仅 lookAt + expressions；medium/high: 完整物理（spring bone）
-                const quality = window.renderQuality || 'high';
+                // low: 仅 lookAt + expressions；medium: 隔帧物理；high: 每帧物理
+                const quality = window.renderQuality || 'medium';
                 if (this.enablePhysics && quality !== 'low') {
-                    this.currentModel.vrm.update(delta);
+                    if (quality === 'medium') {
+                        this._physicsFrameSkip = (this._physicsFrameSkip || 0) + 1;
+                        if (this._physicsFrameSkip % 2 === 0) {
+                            this.currentModel.vrm.update(delta * 2);
+                        } else {
+                            if (this.currentModel.vrm.lookAt) this.currentModel.vrm.lookAt.update(delta);
+                            if (this.currentModel.vrm.expressionManager) this.currentModel.vrm.expressionManager.update(delta);
+                        }
+                    } else {
+                        this.currentModel.vrm.update(delta);
+                    }
                 } else {
                     if (this.currentModel.vrm.lookAt) this.currentModel.vrm.lookAt.update(delta);
                     if (this.currentModel.vrm.expressionManager) this.currentModel.vrm.expressionManager.update(delta);

@@ -428,7 +428,7 @@ VRMManager.prototype._createAnimationSettingsSidePanel = function () {
     qualitySlider.step = '1';
     const qualityMap = { 'low': 0, 'medium': 1, 'high': 2 };
     const qualityNames = ['low', 'medium', 'high'];
-    qualitySlider.value = qualityMap[window.renderQuality || 'high'] ?? 2;
+    qualitySlider.value = qualityMap[window.renderQuality || 'medium'] ?? 1;
     Object.assign(qualitySlider.style, SLIDER_STYLE);
 
     const qualityLabelKeys = [
