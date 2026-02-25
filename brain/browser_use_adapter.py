@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from utils.config_manager import get_config_manager
+from utils.logger_config import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__, "Agent")
 
 _LLM_MODES: List[str] = ["schema", "text"]
 _API_MODE_CACHE_LOCK = threading.Lock()

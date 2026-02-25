@@ -44,9 +44,10 @@ from utils.web_scraper import (
     fetch_news_content, format_news_content,
     fetch_personal_dynamics, format_personal_dynamics,
 )
+from utils.logger_config import get_module_logger
 
 router = APIRouter(prefix="/api", tags=["system"])
-logger = logging.getLogger("Main")
+logger = get_module_logger(__name__, "Main")
 
 # --- 主动搭话近期记录暂存区 ---
 # {lanlan_name: deque([(timestamp, message), ...], maxlen=10)}

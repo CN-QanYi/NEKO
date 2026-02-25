@@ -997,6 +997,8 @@ async def cancel_task(task_id: str):
 
     task_type = info.get("type")
     if task_type == "computer_use":
+        if Modules.computer_use:
+            Modules.computer_use.cancel_running()
         if Modules.active_computer_use_task_id == task_id and Modules.active_computer_use_async_task:
             Modules.active_computer_use_async_task.cancel()
         info["status"] = "cancelled"
@@ -1384,6 +1386,10 @@ async def admin_control(payload: Dict[str, Any]):
                 if isinstance(res, Exception) and not isinstance(res, asyncio.CancelledError):
                     logger.warning(f"[Agent] Error awaiting cancelled background task: {res}")
         Modules._background_tasks.clear()
+
+        # Signal computer-use adapter to cancel at next step boundary
+        if Modules.computer_use:
+            Modules.computer_use.cancel_running()
 
         # Cancel any in-flight asyncio tasks and clear registry
         if Modules.active_computer_use_async_task and not Modules.active_computer_use_async_task.done():

@@ -8,10 +8,11 @@ from langchain_openai import ChatOpenAI
 from openai import APIConnectionError, InternalServerError, RateLimitError
 from config import get_extra_body
 from utils.config_manager import get_config_manager
+from utils.logger_config import get_module_logger
 from .computer_use import ComputerUseAdapter
 
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__, "Agent")
 
 
 @dataclass

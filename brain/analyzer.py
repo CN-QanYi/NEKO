@@ -4,8 +4,9 @@ import asyncio
 from openai import AsyncOpenAI, APIConnectionError, InternalServerError, RateLimitError
 from config import get_extra_body
 from utils.config_manager import get_config_manager
+from utils.logger_config import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__, "Agent")
 
 
 class ConversationAnalyzer:

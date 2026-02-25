@@ -17,7 +17,9 @@ import tempfile
 import time
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from utils.logger_config import get_module_logger
+
+logger = get_module_logger(__name__)
 
 # ---------------------------------------------------------------------------
 #  N.E.K.O. 健康指纹

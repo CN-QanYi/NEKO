@@ -7,7 +7,6 @@ import asyncio
 import json
 import struct  # For packing audio data
 import re
-import logging
 import time
 from typing import Optional
 from datetime import datetime
@@ -21,6 +20,7 @@ from main_logic.omni_offline_client import OmniOfflineClient
 from main_logic.tts_client import get_tts_worker
 from config import MEMORY_SERVER_PORT, TOOL_SERVER_PORT
 from utils.config_manager import get_config_manager
+from utils.logger_config import get_module_logger
 from utils.api_config_loader import get_free_voices
 from utils.language_utils import normalize_language_code
 from threading import Thread
@@ -31,7 +31,7 @@ import soxr
 import httpx
 
 # Setup logger for this module
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__, "Main")
 
 # --- 一个带有定期上下文压缩+在线热切换的语音会话管理器 ---
 class LLMSessionManager:

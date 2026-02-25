@@ -15,12 +15,14 @@ import time
 import uuid
 from typing import Any, Awaitable, Callable, Dict, Optional
 
+from utils.logger_config import get_module_logger
+
 try:
     import zmq
 except Exception:  # pragma: no cover - optional dependency at runtime
     zmq = None
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__, "Main")
 
 # ZMQ 地址：支持环境变量覆盖，便于 launcher 在默认端口落入
 # Hyper-V 保留区时进行迁移。

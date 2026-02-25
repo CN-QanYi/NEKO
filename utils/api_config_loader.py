@@ -14,7 +14,9 @@ from config import (
     DEFAULT_ASSIST_API_PROFILES,
     DEFAULT_ASSIST_API_KEY_FIELDS,
 )
-logger = logging.getLogger(__name__)
+from utils.logger_config import get_module_logger
+
+logger = get_module_logger(__name__)
 
 # 配置缓存
 _config_cache: Optional[Dict[str, Any]] = None
