@@ -3480,6 +3480,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 clearTimeout(window._expressionPreviewRestoreTimer);
                 window._expressionPreviewRestoreTimer = null;
             }
+            // 使在途的动作预览 fetch 回调失效，防止异步返回后设置恢复定时器打断表情
+            if (window._motionPreviewRestoreTimer) {
+                clearTimeout(window._motionPreviewRestoreTimer);
+                window._motionPreviewRestoreTimer = null;
+            }
+            window._currentMotionPreviewId = null;
 
             // 创建预览标记，防止快速连续点击时并发 await 导致多个定时器共存
             window._currentExpressionPreviewToken = (window._currentExpressionPreviewToken || 0) + 1;
