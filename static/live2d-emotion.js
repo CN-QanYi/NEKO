@@ -175,6 +175,9 @@ Live2DManager.prototype.smoothResetToInitialState = function(duration = 800) {
         }
 
         const self = this;
+        const emitter = this.currentModel.internalModel; // 捕获绑定时的 emitter 引用
+        this._smoothResetEmitter = emitter;
+        this._smoothResetResolve = resolve; // 存储 resolve 以便外部取消时也能结束 Promise
         let phase = 0;          // 0 = 采集含表情, 1 = 采集无表情 & 计算 delta, 2 = 淡出
         const valuesA = [];     // Phase 0 采集的全参数值（按索引）
         const deltaByIndex = {}; // { 参数索引: 差值 }
@@ -284,7 +287,7 @@ Live2DManager.prototype.smoothResetToInitialState = function(duration = 800) {
         };
 
         this._smoothResetListener = onBeforeUpdate;
-        this.currentModel.internalModel.on('beforeModelUpdate', onBeforeUpdate);
+        emitter.on('beforeModelUpdate', onBeforeUpdate);
         console.log(`[smoothReset] 差分淡出启动, 持续 ${duration}ms`);
     });
 };
@@ -293,10 +296,19 @@ Live2DManager.prototype.smoothResetToInitialState = function(duration = 800) {
  * 取消正在进行的平滑过渡恢复
  */
 Live2DManager.prototype._cancelSmoothReset = function() {
-    if (this._smoothResetListener && this.currentModel && this.currentModel.internalModel) {
-        this.currentModel.internalModel.off('beforeModelUpdate', this._smoothResetListener);
+    if (this._smoothResetListener) {
+        const emitter = this._smoothResetEmitter || (this.currentModel && this.currentModel.internalModel);
+        if (emitter) {
+            emitter.off('beforeModelUpdate', this._smoothResetListener);
+        }
     }
     this._smoothResetListener = null;
+    this._smoothResetEmitter = null;
+    // 外部取消时结束挂起的 Promise，避免调用方永久等待
+    if (this._smoothResetResolve) {
+        this._smoothResetResolve();
+        this._smoothResetResolve = null;
+    }
 };
 
 /**
@@ -314,8 +326,16 @@ Live2DManager.prototype._installManualExpressionOverride = function(params, fade
 
     if (!this.currentModel || !this.currentModel.internalModel || !params || params.length === 0) return;
 
+    // 钳制 fadeInDuration：非法值回退到默认，范围 [50, 5000]
+    if (!Number.isFinite(fadeInDuration) || fadeInDuration <= 0) {
+        fadeInDuration = 300;
+    }
+    fadeInDuration = Math.max(50, Math.min(fadeInDuration, 5000));
+
     const self = this;
     const startTime = performance.now();
+    const emitter = this.currentModel.internalModel; // 捕获绑定时的 emitter
+    this._manualExpressionEmitter = emitter;
 
     this._manualExpressionParams = params;
 
@@ -347,7 +367,7 @@ Live2DManager.prototype._installManualExpressionOverride = function(params, fade
     };
 
     this._manualExpressionListener = onBeforeUpdate;
-    this.currentModel.internalModel.on('beforeModelUpdate', onBeforeUpdate);
+    emitter.on('beforeModelUpdate', onBeforeUpdate);
     console.log(`[ManualExpression] 安装手动表情覆盖，${params.length}个参数，淡入 ${fadeInDuration}ms`);
 };
 
@@ -355,10 +375,14 @@ Live2DManager.prototype._installManualExpressionOverride = function(params, fade
  * 移除手动表情覆盖
  */
 Live2DManager.prototype._removeManualExpressionOverride = function() {
-    if (this._manualExpressionListener && this.currentModel && this.currentModel.internalModel) {
-        this.currentModel.internalModel.off('beforeModelUpdate', this._manualExpressionListener);
+    if (this._manualExpressionListener) {
+        const emitter = this._manualExpressionEmitter || (this.currentModel && this.currentModel.internalModel);
+        if (emitter) {
+            emitter.off('beforeModelUpdate', this._manualExpressionListener);
+        }
     }
     this._manualExpressionListener = null;
+    this._manualExpressionEmitter = null;
     this._manualExpressionParams = null;
 };
 

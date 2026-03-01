@@ -3304,6 +3304,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window._motionPreviewRestoreTimer = null;
                 }
 
+                // 清除预览标记
+                window._currentMotionPreviewId = null;
+
                 // 停止动作后平滑恢复到初始状态（smoothReset 内部会在快照后停止 motion/expression）
                 if (window.live2dManager && typeof window.live2dManager.smoothResetToInitialState === 'function') {
                     window.live2dManager.smoothResetToInitialState().catch(e => {
@@ -3313,6 +3316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             window.live2dManager.clearExpression();
                         }
                     });
+                } else if (window.live2dManager && typeof window.live2dManager.clearExpression === 'function') {
+                    window.live2dManager.clearExpression();
                 }
             } catch (error) {
                 console.error('停止动作失败:', error);
@@ -3338,9 +3343,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     updateMotionPlayButtonIcon();
                     showStatus(t('live2d.playingMotion', `播放动作: ${motionSelect.value}`, { motion: motionSelect.value }), 1000);
 
+                    // 创建预览标记，防止快速切换预览时旧的 fetch 回调覆盖新的恢复定时器
+                    window._currentMotionPreviewId = (window._currentMotionPreviewId || 0) + 1;
+                    const previewId = window._currentMotionPreviewId;
+
                     // 尝试获取动作持续时间，设置自动恢复定时器
                     const _motionRestoreCallback = () => {
+                        if (window._currentMotionPreviewId !== previewId) return; // 已被新的预览覆盖
                         window._motionPreviewRestoreTimer = null;
+                        window._currentMotionPreviewId = null;
                         isMotionPlaying = false;
                         updateMotionPlayButtonIcon();
                         console.log('[ModelManager] 动作预览结束，自动恢复到初始状态');
@@ -3352,9 +3363,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const motionFile = motionSelect.value;
                         const motionUrl = window.live2dManager ? window.live2dManager.resolveAssetPath(motionFile) : motionFile;
                         RequestHelper.fetchJson(motionUrl).then(data => {
+                            if (window._currentMotionPreviewId !== previewId) return; // 过时的响应
                             const dur = data?.Meta?.Duration ? data.Meta.Duration * 1000 + 500 : 10000; // 动作时长 + 500ms缓冲，或10秒后备
                             window._motionPreviewRestoreTimer = setTimeout(_motionRestoreCallback, dur);
                         }).catch(() => {
+                            if (window._currentMotionPreviewId !== previewId) return; // 过时的响应
                             // fetch失败，使用10秒后备定时器
                             window._motionPreviewRestoreTimer = setTimeout(_motionRestoreCallback, 10000);
                         });
