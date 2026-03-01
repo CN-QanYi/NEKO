@@ -458,12 +458,12 @@ Live2DManager.prototype.setupDragAndDrop = function (model) {
                         console.log('[Interaction] 点击效果持续时间结束，平滑恢复到默认状态');
                         this._currentClickEffectId = null;
                         // 使用平滑过渡恢复到常驻表情或默认状态（smoothReset 内部会在快照后停止 motion/expression）
-                        if (this.smoothResetToInitialState) {
+                        if (typeof this.smoothResetToInitialState === 'function') {
                             this.smoothResetToInitialState().catch(e => {
                                 console.warn('[Interaction] 平滑恢复失败，回退到即时恢复:', e);
-                                if (this.clearExpression) this.clearExpression();
+                                if (typeof this.clearExpression === 'function') this.clearExpression();
                             });
-                        } else if (this.clearExpression) {
+                        } else if (typeof this.clearExpression === 'function') {
                             this.clearExpression();
                         }
                     }, CLICK_EFFECT_DURATION);

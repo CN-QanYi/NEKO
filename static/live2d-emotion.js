@@ -335,7 +335,7 @@ Live2DManager.prototype._installManualExpressionOverride = function(params, fade
             : 1 - Math.pow(-2 * fadeProgress + 2, 2) / 2;
 
         for (const param of self._manualExpressionParams) {
-            if (window.LIPSYNC_PARAMS && window.LIPSYNC_PARAMS.includes(param.Id)) continue;
+            if (Array.isArray(window.LIPSYNC_PARAMS) && window.LIPSYNC_PARAMS.includes(param.Id)) continue;
             try {
                 // 每帧读取当前值（含 motion/focus/breathing 的实时贡献）
                 const current = coreModel.getParameterValueById(param.Id);

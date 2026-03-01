@@ -3308,6 +3308,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (window.live2dManager && typeof window.live2dManager.smoothResetToInitialState === 'function') {
                     window.live2dManager.smoothResetToInitialState().catch(e => {
                         console.warn('[ModelManager] 停止动作后平滑恢复失败:', e);
+                        // 降级：尝试清除表情以确保不残留
+                        if (window.live2dManager && typeof window.live2dManager.clearExpression === 'function') {
+                            window.live2dManager.clearExpression();
+                        }
                     });
                 }
             } catch (error) {
@@ -3347,14 +3351,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     try {
                         const motionFile = motionSelect.value;
                         const motionUrl = window.live2dManager ? window.live2dManager.resolveAssetPath(motionFile) : motionFile;
-                        fetch(motionUrl).then(r => r.ok ? r.json() : null).then(data => {
-                            if (data && data.Meta && data.Meta.Duration) {
-                                const dur = data.Meta.Duration * 1000 + 500; // 动作时长 + 500ms缓冲
-                                window._motionPreviewRestoreTimer = setTimeout(_motionRestoreCallback, dur);
-                            } else {
-                                // 无法获取时长，使用10秒后备定时器
-                                window._motionPreviewRestoreTimer = setTimeout(_motionRestoreCallback, 10000);
-                            }
+                        RequestHelper.fetchJson(motionUrl).then(data => {
+                            const dur = data?.Meta?.Duration ? data.Meta.Duration * 1000 + 500 : 10000; // 动作时长 + 500ms缓冲，或10秒后备
+                            window._motionPreviewRestoreTimer = setTimeout(_motionRestoreCallback, dur);
                         }).catch(() => {
                             // fetch失败，使用10秒后备定时器
                             window._motionPreviewRestoreTimer = setTimeout(_motionRestoreCallback, 10000);
