@@ -858,9 +858,8 @@ Live2DManager.prototype.setEmotion = async function(emotion) {
         this._currentClickEffectId = null;
     }
     
-    // 取消正在进行的平滑过渡和手动表情覆盖，防止与新情感冲突
+    // 取消正在进行的平滑过渡，防止与新情感冲突
     this._cancelSmoothReset();
-    this._removeManualExpressionOverride();
     
     // 获取将要使用的表情文件（用于精确比较）
     let targetExpressionFile = null;
@@ -894,6 +893,9 @@ Live2DManager.prototype.setEmotion = async function(emotion) {
         }
         return;
     }
+    
+    // 确定要更换表情后，移除手动表情覆盖，防止与新情感冲突
+    this._removeManualExpressionOverride();
     
     // 相同情绪但不同表情，或者全新情绪，需要重置
     if (this.currentEmotion === emotion && this.currentExpressionFile !== targetExpressionFile) {

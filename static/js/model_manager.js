@@ -3336,6 +3336,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         clearTimeout(window._expressionPreviewRestoreTimer);
                         window._expressionPreviewRestoreTimer = null;
                     }
+                    // 使在途的表情 await 回调失效，防止异步返回后设置恢复定时器打断动作
+                    window._currentExpressionPreviewToken = null;
 
                     live2dModel.motion('PreviewAll', motionIndex, 3);
                     isMotionPlaying = true;
